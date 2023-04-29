@@ -168,29 +168,64 @@ class InterfuserController(object):
         # MPC control
         # Discrete steering angle from -1.2 to 1.2 with interval of 0.1.
         steer_list=np.arange(-1.2,1.2,0.1)
-
         j_min = 0
+        print(len(waypoints))
         for idx in range(len(steer_list)):
             vehicle_heading_yaw = (np.pi/2) + steer_list[idx]
             t_diff = timestamp - self.prev_timestamp
             pred_x = speed*t_diff*np.cos(vehicle_heading_yaw)
             pred_y = speed*t_diff*np.sin(vehicle_heading_yaw)
             #delta_dis = self.get_dist(pred_x, pred_y, waypoints[-1][:2])
-            delta_dis = np.linalg.norm(np.array([pred_x,pred_y]) - np.array(waypoints[4][:]))
-            print(delta_dis)
+            #delta_dis = abs(np.linalg.norm(np.array([pred_x,pred_y]) - np.array(waypoints[4][:])))
+            delta_dis = math.sqrt((waypoints[-1][0] - pred_x)**2 + (waypoints[-1][1] - pred_y)**2)
             j = 0.1*delta_dis**2 + steer_list[idx]**2
             if idx == 0:
                 j_min = j
             if j < j_min:
                 j_min = j
                 steer_output = steer_list[idx]
-        # Obey the max steering angle bounds
-        if steer_output > 1.22:
-            steer_output = 1.22
-        if steer_output < -1.22:
-            steer_output = -1.22
-                
+       
+
+
         
+
+
+        '''
+
+        x = 0
+        y = 0
+        yaw = np.pi/2
+
+        # Parameters for Lateral controller
+        k = 0.0001         #look forward gain
+        Lfc = 0.1     #look-ahead distance
+        L = 1.0
+
+        # search nearest point index   
+        length = np.arange(0,len(waypoints),1)
+
+        dx = [x - waypoints[icx][0] for icx in length]
+        dy = [y - waypoints[icy][1] for icy in length]
+        d = [abs(math.sqrt(idx ** 2 + idy ** 2)) for (idx,idy) in zip(dx,dy)]
+        ind = d.index(min(d))
+
+
+        if ind < 2:
+            tx = waypoints[ind][0] # target point
+            ty = waypoints[ind][1]  
+        else:
+            tx = waypoints[-1][0]
+            ty = waypoints[-1][1]
+
+        alpha_hat = math.atan2(ty - y,tx - x) # angle between target and current point
+        alpha = alpha_hat - yaw
+
+        Lf = k * speed + Lfc
+
+        # Change the steer output with the lateral controller. 
+        steer_output = math.atan2(2.0 * L * math.sin(alpha) / Lf,1.0)
+            
+        '''
 
 
 
@@ -264,8 +299,9 @@ class InterfuserController(object):
 
 
 
+        
+        steer = -(np.degrees(steer_output*2) / 90)
 
-        steer = np.degrees(steer_output) / 90
         #print("2:",steer)
         #steer = self.turn_controller.step(angle)
         steer = np.clip(steer, -1.0, 1.0)
