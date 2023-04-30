@@ -164,43 +164,39 @@ class InterfuserController(object):
 
 
 
-        '''
+        
         ################################################################# Bang Bang Controller ###############################################################################
-        x = 0
-        y = 0
+        # crosstrack error
+        e_r = 0
+        min_idx = 0
+        # Get the minmum distance between the vehicle and target trajectory
+        for idx in range(len(waypoints)):
+            dis = np.linalg.norm(waypoints[idx])
+            if idx == 0:
+                e_r = dis
+            if dis < e_r:
+                e_r = dis
+                min_idx = idx
 
-        P = np.asarray([x, y])
+        min_path_yaw = np.arctan(waypoints[min_idx][1]/waypoints[min_idx][0])
+        cross_yaw_error = min_path_yaw - (np.pi/2)
+        if cross_yaw_error > np.pi/2:
+            cross_yaw_error -= np.pi
+        if cross_yaw_error < - np.pi/2:
+            cross_yaw_error += np.pi 
 
-        for i in range(len(waypoints)):
-            dis = self.get_distance(x, y, waypoints[i][0], waypoints[i][1])
-            if abs(dis - lookahead_dis) <= self._eps_lookahead:
-                return i
-        return len(waypoints)-1
-
-
-
-
-        i = self.get_lookahead_point_index(x, y, waypoints, self._cte_ref_dist) # Get current waypoint index
-        if i == 0:
-            A = np.asarray([waypoints[i][0], waypoints[i][1]])
-            B = np.asarray([waypoints[i+1][0], waypoints[i+1][1]])
+        if cross_yaw_error > 0:
+            e_r = e_r
         else:
-            A = np.asarray([waypoints[i-1][0], waypoints[i-1][1]])
-            B = np.asarray([waypoints[i][0], waypoints[i][1]])
-        n = B-A
-        m = P-A
-        dirxn = self.get_steering_direction(n, m)
-        crosstrack_error = dirxn*(np.abs(((B[0]-A[0])*(A[1]-P[1]))-((A[0]-P[0])*(B[1]-A[1])))/np.sqrt((B[0]-A[0])**2+(B[1]-A[1])**2))
+            e_r = -e_r
+        crosstrack_error = np.arctan(e_r/(speed+1.0e-6))        
 
-
-        crosstrack_error = self.get_crosstrack_error(x, y, waypoints)
         if crosstrack_error > 0:
-            steering = 1.22*0.1
+            steer_output = 1.22*0.1
         elif crosstrack_error < 0:
-            steering = -1.22*0.1
+            steer_output = -1.22*0.1
         else:
-            steering = 0
-
+            steer_output = 0
 
 
 
@@ -210,6 +206,7 @@ class InterfuserController(object):
 
         ###############################################################################################################################################################################
         '''
+
         ############################################################## MPC #########################################################################################################
         # MPC control
         # Discrete steering angle from -1.2 to 1.2 with interval of 0.1.
@@ -240,7 +237,7 @@ class InterfuserController(object):
 
 
         ###############################################################################################################################################################################
-
+        '''
         ########################################################## STANLEY CONTROLLER #################################################################################################
         '''
         # crosstrack error
@@ -308,7 +305,7 @@ class InterfuserController(object):
 
 
         
-        steer = -np.degrees(steer_output*2) / 90
+        steer = np.degrees(steer_output) / 90
 
         #print("2:",steer)
         #steer = self.turn_controller.step(angle)
